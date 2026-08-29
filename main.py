@@ -24,9 +24,6 @@ TELEGRAM_TOKEN = "8896827968:AAEDS2EOormXaM0CnnDe7mzDcedDDYPc9M4"
 CHAT_ID = "8625723383"
 
 def send_telegram_alert(message_text):
-    if TELEGRAM_TOKEN == "8896827968:AAEDS2EOormXaM0CnnDe7mzDcedDDYPc9M4":
-        return # Bỏ qua nếu chưa điền Token
-    
     url = f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage"
     payload = {
         "chat_id": CHAT_ID,
