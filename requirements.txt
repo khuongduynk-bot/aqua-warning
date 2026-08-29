@@ -7,3 +7,5 @@ pydantic
 numpy
 
 matplotlib
+
+requests
