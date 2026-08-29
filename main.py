@@ -1,16 +1,24 @@
 from fastapi import FastAPI
 from pydantic import BaseModel
 import numpy as np
+from fastapi.middleware.cors import CORSMiddleware
 
 app = FastAPI()
 
-# Khai báo cấu trúc dữ liệu nhận từ app điện thoại
+# Cấp phép CORS để trình duyệt Web không chặn kết nối
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
 class PondData(BaseModel):
     T: float
     D: float
     A: float
 
-# Hàm sinh thái Holling Type III chuẩn APHA
 def calc_F(O, T, Density, Aeration):
     T_K = T + 273.15
     ln_Osat = -139.34411 + (1.575701e5 / T_K) - (6.642308e7 / (T_K**2)) + \
@@ -24,15 +32,13 @@ def calc_F(O, T, Density, Aeration):
 
 @app.post("/predict")
 def predict_tipping_point(data: PondData):
-    # Tạo 100 điểm tọa độ để gửi về điện thoại vẽ đồ thị
     O_vals = np.linspace(0, 10, 100)
     F_vals = calc_F(O_vals, data.T, data.D, data.A)
     max_F = np.max(F_vals)
     
-    # Phân loại trạng thái điểm lật
     if max_F < 0:
         status = "RED"
-        message = "VƯỢT ĐIỂM LẬT - BÚN ĐÁY BÙNG NỔ"
+        message = "VƯỢT ĐIỂM LẬT - BÙN ĐÁY BÙNG NỔ"
     elif 0 <= max_F < 0.8:
         status = "YELLOW"
         message = "CẢNH BÁO NGUY HIỂM - SẮP CHẠM ĐIỂM LẬT"
