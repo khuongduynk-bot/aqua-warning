@@ -21,7 +21,7 @@ class PondData(BaseModel):
 
 # ================= CẤU HÌNH TELEGRAM =================
 TELEGRAM_TOKEN = "8896827968:AAEDS2EOormXaM0CnnDe7mzDcedDDYPc9M4"
-CHAT_ID = "8625723383"
+CHAT_ID = "-1004396439890"
 
 def send_telegram_alert(message_text):
     url = f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage"
