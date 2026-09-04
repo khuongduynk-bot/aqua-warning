@@ -18,6 +18,7 @@ class PondData(BaseModel):
     T: float
     D: float
     A: float
+    O: float
 
 # ================= CẤU HÌNH TELEGRAM =================
 TELEGRAM_TOKEN = "8896827968:AAEDS2EOormXaM0CnnDe7mzDcedDDYPc9M4"
@@ -48,42 +49,55 @@ def calc_F(O, T, Density, Aeration):
     return k1 * (Osat - O) - (W_fish + M_sed * (K**2) / (K**2 + O**2))
 
 @app.post("/predict")
-def predict_tipping_point(data: PondData):
+async def predict_tipping_point(data: PondData):
+   # 1. TÍNH TOÁN LÝ THUYẾT (LUÔN CHẠY ĐỂ VẼ ĐỒ THỊ)
     O_vals = np.linspace(0, 10, 100)
     F_vals = calc_F(O_vals, data.T, data.D, data.A)
     max_F = np.max(F_vals)
-    
+
+    # 2. XÁC ĐỊNH TRẠNG THÁI DỰA TRÊN LÝ THUYẾT
     if max_F < 0:
         status = "RED"
         message = "VƯỢT ĐIỂM LẬT - BÙN ĐÁY BÙNG NỔ"
-        
-        alert_msg_red = (
-            f"🚨 *BÁO ĐỘNG ĐỎ: AO NUÔI ĐÃ VƯỢT ĐIỂM LẬT* 🚨\n\n"
-            f"📊 *Thông số hiện tại:*\n"
-            f"🌡️ Nhiệt độ: {data.T} °C\n"
-            f"🐟 Mật độ: {data.D} con/m²\n"
-            f"💨 Sục khí: {data.A} giờ/ngày\n\n"
-            f"❌ HỆ SINH THÁI SUY SỤP! Yêu cầu cấp cứu ao ngay lập tức!"
-        )
-        send_telegram_alert(alert_msg_red)
-        
     elif 0 <= max_F < 0.8:
         status = "YELLOW"
         message = "CẢNH BÁO NGUY HIỂM - SẮP CHẠM ĐIỂM LẬT"
-        
-        alert_msg_yellow = (
-            f"⚠️ *CẢNH BÁO SỚM: AO NUÔI SẮP CHẠM ĐIỂM LẬT* ⚠️\n\n"
-            f"📊 *Thông số hiện tại:*\n"
-            f"🌡️ Nhiệt độ: {data.T} °C\n"
-            f"🐟 Mật độ: {data.D} con/m²\n"
-            f"💨 Sục khí: {data.A} giờ/ngày\n\n"
-            f"⚡ Sức chịu đựng của ao đang cạn kiệt. Hãy bật thêm quạt nước hoặc giảm lượng thức ăn để phòng ngừa!"
-        )
-        send_telegram_alert(alert_msg_yellow)
-        
     else:
         status = "GREEN"
         message = "AO AN TOÀN"
+
+    # 3. CHỐT CHẶN PHẦN CỨNG: GHI ĐÈ BẰNG OXY THỰC TẾ
+    if data.O <= 2.5:
+        status = "RED"
+        message = f"BÁO ĐỘNG KHẨN: Lượng Oxy ({data.O} mg/L) rớt xuống mức nguy hiểm gây ngạt!"
+    elif data.O <= 3.5 and status != "RED":
+        status = "YELLOW"
+        message = f"LƯU Ý: Lượng Oxy ({data.O} mg/L) đang suy giảm, cần tăng sục khí."
+
+    # 4. GỬI TIN NHẮN TELEGRAM THEO TRẠNG THÁI CUỐI CÙNG
+    if status == "RED":
+        alert_msg_red = (
+            f"🚨 *BÁO ĐỘNG ĐỎ: AO NUÔI VƯỢT ĐIỂM LẬT HOẶC THIẾU OXY* 🚨\n\n"
+            f"📊 *Thông số hiện tại:*\n"
+            f"🌡 Nhiệt độ: {data.T} °C\n"
+            f"🐟 Mật độ: {data.D} con/m²\n"
+            f"💨 Sục khí: {data.A} giờ/ngày\n"
+            f"💧 Oxy hòa tan: {data.O} mg/L\n\n"
+            f"❌ {message}\nYêu cầu cấp cứu ao ngay lập tức!"
+        )
+        send_telegram_alert(alert_msg_red)
+        
+    elif status == "YELLOW":
+        alert_msg_yellow = (
+            f"⚠️ *CẢNH BÁO SỚM: AO NUÔI ĐANG SUY YẾU* ⚠️\n\n"
+            f"📊 *Thông số hiện tại:*\n"
+            f"🌡 Nhiệt độ: {data.T} °C\n"
+            f"🐟 Mật độ: {data.D} con/m²\n"
+            f"💨 Sục khí: {data.A} giờ/ngày\n"
+            f"💧 Oxy hòa tan: {data.O} mg/L\n\n"
+            f"⚡ {message}\nHãy bật thêm quạt nước để phòng ngừa!"
+        )
+        send_telegram_alert(alert_msg_yellow)
         
     return {
         "status": status,
